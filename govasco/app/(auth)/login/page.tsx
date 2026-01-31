@@ -47,7 +47,9 @@ export default function LoginPage() {
       if (error) throw error
       
       if (data.user) {
-        router.push('/dashboard')
+        // Après login réussi - rediriger vers callback pour merge
+        const redirect = searchParams.get('redirect') || '/dashboard'
+        router.push(`/auth-callback?redirect=${encodeURIComponent(redirect)}`)
         router.refresh()
       }
     } catch (err: any) {

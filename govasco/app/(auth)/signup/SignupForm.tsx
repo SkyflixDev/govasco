@@ -1,35 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { APP_NAME } from '@/lib/config/constants'
 
-interface LoginPageProps {
-  searchParams: Promise<{ redirect?: string }> | { redirect?: string }
-}
-
-export default function LoginPage(props: LoginPageProps) {
+export default function SignupForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
 
-  // Handle both Promise and direct object for searchParams
-  const getRedirect = async () => {
-    const params = await Promise.resolve(props.searchParams)
-    return params.redirect || '/dashboard'
-  }
-
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     try {
       setLoading(true)
       setError('')
 
       const supabase = createClient()
-      const redirect = await getRedirect()
+      const redirect = searchParams.get('redirect') || '/dashboard'
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -40,38 +33,96 @@ export default function LoginPage(props: LoginPageProps) {
 
       if (error) throw error
     } catch (error: any) {
-      console.error('Google login error:', error)
-      setError(error.message || 'Erreur lors de la connexion avec Google')
+      console.error('Google signup error:', error)
+      setError(error.message || 'Erreur lors de l\'inscription avec Google')
       setLoading(false)
     }
   }
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (password !== confirmPassword) {
+      setError('Les mots de passe ne correspondent pas')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Le mot de passe doit contenir au moins 6 caractères')
+      return
+    }
 
     try {
       setLoading(true)
       setError('')
 
       const supabase = createClient()
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth-callback`,
+        },
       })
 
       if (error) throw error
 
       if (data.user) {
-        // Après login réussi - rediriger vers callback pour merge
-        const redirect = await getRedirect()
-        router.push(`/auth-callback?redirect=${encodeURIComponent(redirect)}`)
-        router.refresh()
+        // Check if email confirmation is required
+        if (data.user.identities && data.user.identities.length === 0) {
+          setError('Cet email est déjà utilisé')
+          setLoading(false)
+          return
+        }
+
+        // If email confirmation is disabled, redirect immediately
+        if (data.session) {
+          const redirect = searchParams.get('redirect') || '/dashboard'
+          router.push(`/auth-callback?redirect=${encodeURIComponent(redirect)}`)
+          router.refresh()
+        } else {
+          // Email confirmation required
+          setSuccess(true)
+        }
       }
     } catch (error: any) {
-      console.error('Email login error:', error)
-      setError(error.message || 'Email ou mot de passe incorrect')
+      console.error('Email signup error:', error)
+      setError(error.message || 'Erreur lors de l\'inscription')
       setLoading(false)
     }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500" />
+
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-xl mb-4">
+                <span className="text-5xl">✅</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                Vérifiez votre email
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Un email de confirmation a été envoyé à <strong>{email}</strong>.
+                Cliquez sur le lien dans l'email pour activer votre compte.
+              </p>
+              <Link
+                href="/login"
+                className="inline-block bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all"
+              >
+                Retour à la connexion
+              </Link>
+            </div>
+
+            <div className="h-2 bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -86,7 +137,7 @@ export default function LoginPage(props: LoginPageProps) {
                 <span className="text-5xl">🦊</span>
               </div>
               <h1 className="text-3xl font-bold text-gray-900">{APP_NAME}</h1>
-              <p className="text-gray-600 mt-2">Connectez-vous à votre compte</p>
+              <p className="text-gray-600 mt-2">Créez votre compte</p>
             </div>
 
             {error && (
@@ -96,7 +147,7 @@ export default function LoginPage(props: LoginPageProps) {
             )}
 
             <button
-              onClick={handleGoogleLogin}
+              onClick={handleGoogleSignup}
               disabled={loading}
               className="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-300 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-all disabled:opacity-50 mb-6"
             >
@@ -130,7 +181,7 @@ export default function LoginPage(props: LoginPageProps) {
               </div>
             </div>
 
-            <form onSubmit={handleEmailLogin} className="space-y-4">
+            <form onSubmit={handleEmailSignup} className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Email
@@ -156,19 +207,26 @@ export default function LoginPage(props: LoginPageProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={6}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="••••••••"
                 />
+                <p className="mt-1 text-xs text-gray-500">Minimum 6 caractères</p>
               </div>
 
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  <span className="text-gray-600">Se souvenir</span>
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirmer le mot de passe
                 </label>
-                <Link href="/forgot" className="text-orange-600 hover:text-orange-700 font-semibold">
-                  Mot de passe oublié ?
-                </Link>
+                <input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
               </div>
 
               <button
@@ -176,14 +234,14 @@ export default function LoginPage(props: LoginPageProps) {
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50"
               >
-                {loading ? 'Connexion...' : 'Se connecter'}
+                {loading ? 'Création...' : 'Créer mon compte'}
               </button>
             </form>
 
             <p className="mt-6 text-center text-sm text-gray-600">
-              Pas encore de compte ?{' '}
-              <Link href="/signup" className="text-orange-600 hover:text-orange-700 font-semibold">
-                Créer un compte
+              Déjà un compte ?{' '}
+              <Link href="/login" className="text-orange-600 hover:text-orange-700 font-semibold">
+                Se connecter
               </Link>
             </p>
           </div>
