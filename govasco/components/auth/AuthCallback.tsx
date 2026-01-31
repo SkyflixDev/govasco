@@ -30,7 +30,7 @@ export function AuthCallback() {
         
         const result = await checkAndMerge()
         
-        if (result.success && result.mergedCount > 0) {
+        if (result.success && (result.mergedCount ?? 0) > 0) {
           setMessage(`✅ ${result.mergedCount} voyage(s) sauvegardé(s) !`)
           setStatus('done')
         } else if (result.success) {
