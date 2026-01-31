@@ -39,7 +39,7 @@ export const COMFORT_LABELS = {
   [COMFORT_LEVELS.COMFORT]: '✨ Confort',
 }
 
-// Centres d'intérêt
+// Centres d'intérêt (12 catégories)
 export const INTERESTS = [
   'culture',
   'nature',
@@ -49,7 +49,26 @@ export const INTERESTS = [
   'aventure',
   'shopping',
   'relaxation',
+  'insolite',
+  'sport',
+  'vie_nocturne',
+  'famille',
 ] as const
+
+export const INTEREST_LABELS: Record<typeof INTERESTS[number], string> = {
+  culture: '🎭 Culture',
+  nature: '🌿 Nature',
+  gastronomie: '🍽️ Gastronomie',
+  histoire: '🏛️ Histoire',
+  plage: '🏖️ Plage',
+  aventure: '🧗 Aventure',
+  shopping: '🛍️ Shopping',
+  relaxation: '🧘 Relaxation',
+  insolite: '🎪 Insolite',
+  sport: '⚽ Sport',
+  vie_nocturne: '🌙 Vie nocturne',
+  famille: '👨‍👩‍👧‍👦 Famille',
+}
 
 // Rythme de voyage
 export const TRAVEL_PACE = {

@@ -64,10 +64,14 @@ export async function protectApiRoute(
     const rateLimit = checkRateLimit(identifier, !!userId)
     
     if (!rateLimit.allowed) {
-      const retryAfterHeader = rateLimit.retryAfter
-        ? { 'Retry-After': rateLimit.retryAfter.toString() }
-        : {}
-      
+      const headers: Record<string, string> = {
+        'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+        'X-RateLimit-Reset': new Date(rateLimit.resetAt).toISOString(),
+      }
+      if (rateLimit.retryAfter) {
+        headers['Retry-After'] = rateLimit.retryAfter.toString()
+      }
+
       return {
         allowed: false,
         response: NextResponse.json(
@@ -78,14 +82,7 @@ export async function protectApiRoute(
             resetAt: new Date(rateLimit.resetAt).toISOString(),
             retryAfter: rateLimit.retryAfter,
           },
-          {
-            status: 429,
-            headers: {
-              ...retryAfterHeader,
-              'X-RateLimit-Remaining': rateLimit.remaining.toString(),
-              'X-RateLimit-Reset': new Date(rateLimit.resetAt).toISOString(),
-            },
-          }
+          { status: 429, headers }
         ),
       }
     }

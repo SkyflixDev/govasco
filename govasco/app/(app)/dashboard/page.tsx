@@ -1,10 +1,34 @@
 'use client'
 
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { APP_NAME } from '@/lib/config/constants'
+import { useTrips } from '@/hooks/useTrips'
+import TripCard, { TripCardSkeleton } from '@/components/trip/TripCard'
 import { Plane, MapPin, Compass } from 'lucide-react'
 
 export default function DashboardPage() {
+  const { trips, loading, error, reload } = useTrips()
+
+  // Calculer les stats
+  const stats = useMemo(() => {
+    const destinations = new Set(trips.map((t) => t.destination)).size
+    const activities = trips.reduce((acc, t) => {
+      if (t.itinerary?.days) {
+        return acc + t.itinerary.days.reduce((dayAcc: number, day: { activities?: unknown[] }) => {
+          return dayAcc + (day.activities?.length || 0)
+        }, 0)
+      }
+      return acc
+    }, 0)
+
+    return {
+      voyages: trips.length,
+      destinations,
+      activities,
+    }
+  }, [trips])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100">
       {/* Texture subtile */}
@@ -58,24 +82,24 @@ export default function DashboardPage() {
                   tout est pensé pour vous.
                 </p>
 
-                {/* Stats épurées */}
+                {/* Stats dynamiques */}
                 <div className="flex gap-8 mb-8 justify-center md:justify-start">
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-900">0</div>
+                    <div className="text-3xl font-bold text-gray-900">{stats.voyages}</div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
                       <Plane size={14} />
                       Voyages
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-900">0</div>
+                    <div className="text-3xl font-bold text-gray-900">{stats.destinations}</div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
                       <MapPin size={14} />
                       Destinations
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-900">0</div>
+                    <div className="text-3xl font-bold text-gray-900">{stats.activities}</div>
                     <div className="text-sm text-gray-500 flex items-center gap-1">
                       <Compass size={14} />
                       Activités
@@ -85,7 +109,7 @@ export default function DashboardPage() {
 
                 {/* CTA principal */}
                 <Link
-                  href="/trips/new"
+                  href="/create"
                   className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-4 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 active:translate-y-0"
                 >
                   Créer mon voyage
@@ -101,6 +125,63 @@ export default function DashboardPage() {
           <div className="h-2 bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500" />
         </div>
 
+        {/* Liste des voyages */}
+        {trips.length > 0 && (
+          <div className="space-y-6 mb-10">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Mes voyages
+              </h2>
+              <button
+                onClick={reload}
+                className="text-sm text-orange-600 hover:text-orange-700 font-medium"
+              >
+                Actualiser
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <TripCardSkeleton />
+                <TripCardSkeleton />
+                <TripCardSkeleton />
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 text-red-700 p-4 rounded-xl">
+                Erreur: {error}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {trips.map((trip) => (
+                  <TripCard key={trip.id} trip={trip} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Message si aucun voyage */}
+        {!loading && trips.length === 0 && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center mb-10">
+            <span className="text-5xl block mb-4">🗺️</span>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Aucun voyage pour le moment
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Créez votre premier itinéraire avec Vasco !
+            </p>
+            <Link
+              href="/create"
+              className="inline-flex items-center gap-2 text-orange-600 hover:text-orange-700 font-medium"
+            >
+              Commencer
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+          </div>
+        )}
+
         {/* Destinations - Design pro */}
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -112,7 +193,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Marrakech */}
-            <div className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all cursor-pointer">
+            <Link href="/create" className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all">
               <div className="aspect-[16/9] bg-gradient-to-br from-orange-400 to-red-500 relative overflow-hidden">
                 {/* Image placeholder avec overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -145,10 +226,10 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Tokyo */}
-            <div className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all cursor-pointer">
+            <Link href="/create" className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all">
               <div className="aspect-[16/9] bg-gradient-to-br from-pink-400 to-red-500 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -179,10 +260,10 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Surprise */}
-            <div className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all cursor-pointer">
+            <Link href="/create" className="group bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-2xl transition-all">
               <div className="aspect-[16/9] bg-gradient-to-br from-purple-400 to-blue-500 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -213,7 +294,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
           </div>
         </div>
 
